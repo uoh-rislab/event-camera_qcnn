@@ -13,6 +13,10 @@ Hybrid Quantum Training for Event-based Datasets (TQR) with logging & progress
     - metrics.json (final)
     - per_epoch.csv
     - confusion_matrix_normalized.txt
+    - classification_report.txt
+    - model.pth
+    - pca.pkl
+    - device.json
 """
 
 import os
@@ -37,6 +41,12 @@ try:
 except Exception:
     IncrementalPCA = None
     print("[WARN] scikit-learn not available. Please install scikit-learn.", file=sys.stderr)
+
+try:
+    import joblib
+except Exception:
+    joblib = None
+    print("[WARN] joblib not available. Please install joblib.", file=sys.stderr)
 
 try:
     from tqdm import tqdm
@@ -325,6 +335,16 @@ def train_one(dataset_key: str, data_root: str, output_root: str, rep: str, epoc
     run_dir = ensure_dir(os.path.join(output_root, "qcnn", dataset_key, timestamp()))
     print(f"[Run dir] {run_dir}")
 
+    # Record device info
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    dev_info = {"device": str(device)}
+    if device.type == "cuda":
+        dev_info["cuda_index"] = torch.cuda.current_device()
+        dev_info["cuda_name"] = torch.cuda.get_device_name(dev_info["cuda_index"])
+        dev_info["cuda_count"] = torch.cuda.device_count()
+    with open(os.path.join(run_dir, "device.json"), "w") as f:
+        json.dump(dev_info, f, indent=2)
+
     # find split dirs
     train_dir, test_dir = find_split_dirs(rep_root)
     if train_dir is None:
@@ -371,6 +391,12 @@ def train_one(dataset_key: str, data_root: str, output_root: str, rep: str, epoc
     print("-> Fitting PCA on train split...")
     pca = fit_pca(pairs_train, k=n_qubits, batch=256)
 
+    # Persist PCA
+    if joblib is not None:
+        joblib.dump(pca, os.path.join(run_dir, "pca.pkl"))
+    else:
+        print("[WARN] joblib not available; PCA will not be saved.")
+
     # Datasets
     ds_train = EventTQRDataset(pairs_train, pca_model=pca)
     ds_val   = EventTQRDataset(pairs_val,   pca_model=pca)
@@ -380,7 +406,6 @@ def train_one(dataset_key: str, data_root: str, output_root: str, rep: str, epoc
 
     # Model
     model = QuantumClassifier(n_qubits=n_qubits, n_classes=n_classes, n_layers=2)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     optim = torch.optim.Adam(model.parameters(), lr=LR)
@@ -428,6 +453,12 @@ def train_one(dataset_key: str, data_root: str, output_root: str, rep: str, epoc
 
         with open(per_epoch_path, "a") as f:
             f.write(f"{epoch},{tr_loss:.6f},{tr_acc:.6f},{val_loss:.6f},{val_acc:.6f}\n")
+
+    # Save model weights
+    torch.save({"state_dict": model.state_dict(),
+                "n_qubits": n_qubits,
+                "n_classes": n_classes},
+               os.path.join(run_dir, "model.pth"))
 
     # Final metrics (precision/recall/F1 + confusion matrix)
     final_metrics = evaluate(model, dl_val, device, n_classes)

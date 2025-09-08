@@ -1,0 +1,9 @@
+# Un dataset
+python train.py --data_root /app/input --output_root /app/output --dataset ncars --epochs 10 --batch_size 32
+
+# Todos
+./run_all.sh /app/input /app/output 10 32 tqr_tensor
+
+# Uno por uno
+./run_each.sh /app/input /app/output 10 32 tqr_tensor
+
