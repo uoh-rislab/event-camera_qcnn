@@ -60,10 +60,11 @@ import pennylane as qml
 # Defaults
 # ----------------------
 
+# subdir, n_qubits, n_classes
 DATASETS = {
-    "nmnist":      ("nmnist_rep_100ms",          8,  10),
-    "ncars":       ("ncars_rep_100ms",           8,   2),
-    "dvs-gesture": ("dvsgesture_rep_100ms",     12,  11),
+    "nmnist":      ("nmnist_rep_100ms",          16,  10),
+    "ncars":       ("ncars_rep_100ms",           16,   2),
+    "dvs-gesture": ("dvsgesture_rep_100ms",     16,  11),
     "eck+":        ("eck+_rep_100ms",           16,   7),
 }
 
@@ -264,7 +265,9 @@ class QuantumClassifier(nn.Module):
         super().__init__()
         self.n_qubits = n_qubits
         self.n_classes = n_classes
-        self.dev = qml.device("default.qubit", wires=n_qubits)
+        #self.dev = qml.device("default.qubit", wires=n_qubits)
+        self.dev = qml.device("lightning.gpu", wires=n_qubits)
+
         weight_shapes = {"weights": (n_layers, n_qubits, 3)}
 
         @qml.qnode(self.dev, interface="torch")
