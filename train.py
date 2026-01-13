@@ -266,7 +266,7 @@ class QuantumClassifier(nn.Module):
         super().__init__()
         self.n_qubits = n_qubits
         self.n_classes = n_classes
-        self.dev = qml.device("default.qubit", wires=n_qubits, gpu=0)
+        self.dev = qml.device("default.qubit", wires=n_qubits)
         #self.dev = qml.device("lightning.gpu", wires=n_qubits)
 
         weight_shapes = {"weights": (n_layers, n_qubits, 3)}
