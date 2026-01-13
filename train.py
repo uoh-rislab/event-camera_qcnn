@@ -20,6 +20,7 @@ Hybrid Quantum Training for Event-based Datasets (TQR) with logging & progress
 """
 
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import re
 import sys
 import math
@@ -265,7 +266,7 @@ class QuantumClassifier(nn.Module):
         super().__init__()
         self.n_qubits = n_qubits
         self.n_classes = n_classes
-        self.dev = qml.device("default.qubit", wires=n_qubits)
+        self.dev = qml.device("default.qubit", wires=n_qubits, gpu=0)
         #self.dev = qml.device("lightning.gpu", wires=n_qubits)
 
         weight_shapes = {"weights": (n_layers, n_qubits, 3)}
@@ -339,7 +340,9 @@ def train_one(dataset_key: str, data_root: str, output_root: str, rep: str, epoc
     print(f"[Run dir] {run_dir}")
 
     # Record device info
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    torch.cuda.set_device(0)
+
     dev_info = {"device": str(device)}
     if device.type == "cuda":
         dev_info["cuda_index"] = torch.cuda.current_device()
